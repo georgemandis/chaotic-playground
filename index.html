@@ -3,20 +3,417 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sketch</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+  <title>Chaotic Playground</title>
+  <meta name="description" content="An interactive visualization of the chaos game — generating fractals from pure randomness.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
   <style>
-    html, body {
+    *, *::before, *::after {
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      box-sizing: border-box;
     }
-    canvas {
-      display: block;
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: rgba(10, 10, 12, 0.88);
+      --surface-border: rgba(255, 255, 255, 0.06);
+      --text: #e8e4df;
+      --text-dim: #7a756e;
+      --text-faint: #4a463f;
+      --accent: #c9a87c;
+      --accent-dim: rgba(201, 168, 124, 0.15);
+      --serif: 'Cormorant Garamond', 'Georgia', serif;
+      --mono: 'JetBrains Mono', 'Menlo', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--serif);
+    }
+
+    /* Sketch iframe fills viewport */
+    .sketch-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      z-index: 0;
+    }
+
+    /* Content overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 3vmin;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.6s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      max-width: 440px;
+      width: 100%;
+      padding: 2.5rem 2.5rem 2rem;
+      position: relative;
+      overflow: hidden;
+      animation: panelReveal 1s ease forwards;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    @keyframes panelReveal {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.4;
+    }
+
+    .title {
+      font-family: var(--serif);
+      font-size: 2.2rem;
+      font-weight: 300;
+      letter-spacing: 0.02em;
+      line-height: 1.15;
+      margin-bottom: 0.2rem;
+      color: var(--text);
+    }
+
+    .title em {
+      font-style: italic;
+      color: var(--accent);
+      font-weight: 300;
+    }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1.8rem;
+    }
+
+    .description {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--text-dim);
+      margin-bottom: 1.6rem;
+    }
+
+    .description strong {
+      color: var(--text);
+      font-weight: 400;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--surface-border), var(--accent-dim), var(--surface-border));
+      margin: 1.4rem 0;
+    }
+
+    .controls-heading {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.9rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.35rem 1rem;
+      align-items: baseline;
+    }
+
+    .key {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: var(--accent);
+      white-space: nowrap;
+      padding: 0.1em 0.45em;
+      background: var(--accent-dim);
+      border-radius: 3px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .action {
+      font-family: var(--serif);
+      font-size: 0.88rem;
+      font-weight: 300;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .footer {
+      margin-top: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .toggle-hint {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      transition: color 0.3s ease;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .github-link {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 0.4em 0.8em;
+      border: 1px solid var(--surface-border);
+      border-radius: 3px;
+      transition: all 0.3s ease;
+      pointer-events: auto;
+    }
+
+    .github-link:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* Fullscreen button */
+    .fullscreen-link {
+      position: fixed;
+      bottom: 3vmin;
+      right: 3vmin;
+      z-index: 20;
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      text-decoration: none;
+      padding: 0.5em 1em;
+      border: 1px solid var(--surface-border);
+      border-radius: 3px;
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all 0.3s ease;
+      animation: fadeIn 1.5s ease forwards;
+      opacity: 0;
+    }
+
+    .fullscreen-link:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    /* Algorithm steps */
+    .algorithm {
+      margin-bottom: 1.4rem;
+    }
+
+    .algorithm ol {
+      list-style: none;
+      counter-reset: steps;
+      padding: 0;
+    }
+
+    .algorithm li {
+      counter-increment: steps;
+      font-family: var(--serif);
+      font-size: 0.92rem;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-dim);
+      padding-left: 1.8em;
+      position: relative;
+      margin-bottom: 0.25rem;
+    }
+
+    .algorithm li::before {
+      content: counter(steps);
+      position: absolute;
+      left: 0;
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      opacity: 0.6;
+      top: 0.25em;
+      width: 1.2em;
+      text-align: right;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 520px) {
+      .overlay {
+        padding: 2vmin;
+        align-items: flex-end;
+      }
+
+      .panel {
+        padding: 1.5rem 1.5rem 1.2rem;
+        max-width: 100%;
+      }
+
+      .title {
+        font-size: 1.6rem;
+      }
+
+      .description {
+        font-size: 0.95rem;
+      }
+
+      .controls-grid {
+        gap: 0.25rem 0.75rem;
+      }
     }
   </style>
 </head>
 <body>
-  <script src="sketch.js"></script>
+  <iframe class="sketch-frame" src="sketch.html" title="Chaos game visualization"></iframe>
+
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h1 class="title">Chaotic <em>Playground</em></h1>
+      <p class="subtitle">Fractals from randomness</p>
+
+      <p class="description">
+        An interactive <strong>chaos game</strong> visualization. Pick vertices, choose a ratio,
+        and watch structure emerge from pure randomness. The classic Sierpinski triangle
+        is just the beginning.
+      </p>
+
+      <div class="algorithm">
+        <ol>
+          <li>Place vertices on the canvas</li>
+          <li>Pick a random vertex each step</li>
+          <li>Move a fraction of the distance toward it</li>
+          <li>Mark the spot. Repeat forever.</li>
+        </ol>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="controls-heading">Controls</p>
+      <div class="controls-grid">
+        <span class="key">P</span>
+        <span class="action">Play / Pause</span>
+
+        <span class="key">M</span>
+        <span class="action">Toggle vertex / start mode</span>
+
+        <span class="key">&larr; &rarr;</span>
+        <span class="action">Adjust speed</span>
+
+        <span class="key">&uarr; &darr;</span>
+        <span class="action">Adjust ratio</span>
+
+        <span class="key">T</span>
+        <span class="action">Trail mode</span>
+
+        <span class="key">A</span>
+        <span class="action">Animate vertices</span>
+
+        <span class="key">B</span>
+        <span class="action">Black &amp; white</span>
+
+        <span class="key">C</span>
+        <span class="action">Clear canvas</span>
+
+        <span class="key">Click</span>
+        <span class="action">Add point / Drag to move</span>
+
+        <span class="key">Right-click</span>
+        <span class="action">Remove nearest point</span>
+      </div>
+
+      <div class="footer">
+        <span class="toggle-hint">Press <span class="key" style="display:inline">H</span> to toggle this panel</span>
+        <span class="footer-links">
+          <a href="https://george.mand.is" class="github-link">george.mand.is</a>
+          <a href="https://github.com/georgemandis/chaotic-playground" class="github-link">Source</a>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <a href="sketch.html" class="fullscreen-link" id="fullscreenLink">Fullscreen sketch</a>
+
+  <script>
+    const overlay = document.getElementById('overlay');
+    const fullscreenLink = document.getElementById('fullscreenLink');
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'h' || e.key === 'H') {
+        overlay.classList.toggle('hidden');
+        fullscreenLink.style.opacity = overlay.classList.contains('hidden') ? '0.3' : '';
+      }
+    });
+
+    // Forward keyboard events to the sketch iframe (except H)
+    const sketchFrame = document.querySelector('.sketch-frame');
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'h' || e.key === 'H') return;
+      try {
+        sketchFrame.contentWindow.dispatchEvent(new KeyboardEvent('keydown', {
+          key: e.key,
+          keyCode: e.keyCode,
+          code: e.code,
+          which: e.which,
+          bubbles: true
+        }));
+      } catch (err) { /* cross-origin fallback: ignore */ }
+    });
+  </script>
 </body>
 </html>

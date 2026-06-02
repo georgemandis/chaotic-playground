@@ -1,5 +1,7 @@
 # Chaos Game
 
+**[Try it live](https://georgemandis.github.io/chaotic-playground/)**
+
 An interactive visualization of the [chaos game](https://en.wikipedia.org/wiki/Chaos_game), a method for generating fractals through a deceptively simple algorithm.
 
 ## The Algorithm
