@@ -15,6 +15,8 @@ let continuous = false;
 let bw = false;
 let animated = false;
 let velocities = [];
+let trailMode = false;
+let trailSize = 6;
 
 // UI
 let panelX, panelY, panelW, panelH;
@@ -32,7 +34,7 @@ function setup() {
   addStartPoint(random(width), random(height));
 
   panelW = 220;
-  panelH = 258;
+  panelH = 280;
   panelX = width - panelW - 15;
   panelY = 15;
 }
@@ -73,21 +75,37 @@ function draw() {
   }
 
   if (running && vertices.length >= 2) {
-    for (let i = 0; i < speed; i++) {
+    let steps = trailMode ? 1 : speed;
+    for (let i = 0; i < steps; i++) {
       for (let c = 0; c < currents.length; c++) {
         let idx = floor(random(vertices.length));
         let v = vertices[idx];
         currents[c].x = currents[c].x + ratio * (v.x - currents[c].x);
         currents[c].y = currents[c].y + ratio * (v.y - currents[c].y);
 
-        if (bw) {
-          pts.stroke(255, 150);
+        if (trailMode) {
+          let prevX = currents[c].prevX || currents[c].x;
+          let prevY = currents[c].prevY || currents[c].y;
+          if (bw) {
+            pts.stroke(255, 20);
+          } else {
+            let col = vertexColors[idx];
+            pts.stroke(red(col), green(col), blue(col), 20);
+          }
+          pts.strokeWeight(1);
+          pts.line(prevX, prevY, currents[c].x, currents[c].y);
+          currents[c].prevX = currents[c].x;
+          currents[c].prevY = currents[c].y;
         } else {
-          let col = vertexColors[idx];
-          pts.stroke(red(col), green(col), blue(col), 150);
+          if (bw) {
+            pts.stroke(255, 150);
+          } else {
+            let col = vertexColors[idx];
+            pts.stroke(red(col), green(col), blue(col), 150);
+          }
+          pts.strokeWeight(1);
+          pts.point(currents[c].x, currents[c].y);
         }
-        pts.strokeWeight(1);
-        pts.point(currents[c].x, currents[c].y);
       }
     }
   }
@@ -159,6 +177,9 @@ function drawPanel() {
   text('[A] Animate: ' + (animated ? 'ON' : 'OFF'), x, y);
   y += 22;
 
+  text('[T] Trail: ' + (trailMode ? 'ON' : 'OFF'), x, y);
+  y += 22;
+
   text('[C] Clear canvas', x, y);
   y += 22;
 
@@ -198,6 +219,9 @@ function keyPressed() {
     resetCanvas();
   } else if (key === 'a' || key === 'A') {
     animated = !animated;
+  } else if (key === 't' || key === 'T') {
+    trailMode = !trailMode;
+    resetCanvas();
   }
 }
 
